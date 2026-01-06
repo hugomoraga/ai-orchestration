@@ -1,0 +1,62 @@
+{
+  "name": "@ai-orchestration/core",
+  "version": "0.1.0",
+  "description": "Modular AI orchestration framework for multiple LLM providers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "npx tsx tests/basic.test.ts",
+    "test:local": "npx tsx examples/test-local.ts",
+    "test:mock": "npx tsx examples/test-mock.ts",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "link": "npm run build && npm link",
+    "pack:local": "npm run build && npm pack",
+    "prepublishOnly": "npm run build && npm run typecheck"
+  },
+  "keywords": [
+    "ai",
+    "llm",
+    "orchestration",
+    "grok",
+    "gemini",
+    "openrouter",
+    "cerebras"
+  ],
+  "author": "Hugo Moraga Morales",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0"
+  },
+  "peerDependencies": {
+    "@google/generative-ai": "^0.2.0",
+    "groq-sdk": "^0.3.0",
+    "openai": "^4.20.0"
+  },
+  "peerDependenciesMeta": {
+    "@google/generative-ai": {
+      "optional": true
+    },
+    "groq-sdk": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
+  }
+}
+
