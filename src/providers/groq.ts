@@ -99,9 +99,26 @@ export class GroqProvider extends BaseProvider {
     if (options?.maxTokens !== undefined) requestBody.max_tokens = options.maxTokens;
     if (options?.topP !== undefined) requestBody.top_p = options.topP;
     if (options?.stopSequences !== undefined) requestBody.stop = options.stopSequences;
+    if (options?.frequencyPenalty !== undefined) requestBody.frequency_penalty = options.frequencyPenalty;
+    if (options?.presencePenalty !== undefined) requestBody.presence_penalty = options.presencePenalty;
+    if (options?.seed !== undefined && options.seed !== null) requestBody.seed = options.seed;
+    if (options?.user !== undefined) requestBody.user = options.user;
 
-    // Add any additional options (excluding camelCase ones we've already converted)
-    const { maxTokens, topP, stopSequences, ...restOptions } = options || {};
+    // Exclude framework-specific options that shouldn't be sent to the API
+    const {
+      maxTokens,
+      topP,
+      stopSequences,
+      responseLanguage,
+      timeout,
+      frequencyPenalty,
+      presencePenalty,
+      seed,
+      user,
+      ...restOptions
+    } = options || {};
+    
+    // Add any additional provider-specific options
     Object.assign(requestBody, restOptions);
 
     const response = await fetch(`${this.baseURL}/chat/completions`, {
@@ -138,9 +155,26 @@ export class GroqProvider extends BaseProvider {
     if (options?.maxTokens !== undefined) requestBody.max_tokens = options.maxTokens;
     if (options?.topP !== undefined) requestBody.top_p = options.topP;
     if (options?.stopSequences !== undefined) requestBody.stop = options.stopSequences;
+    if (options?.frequencyPenalty !== undefined) requestBody.frequency_penalty = options.frequencyPenalty;
+    if (options?.presencePenalty !== undefined) requestBody.presence_penalty = options.presencePenalty;
+    if (options?.seed !== undefined && options.seed !== null) requestBody.seed = options.seed;
+    if (options?.user !== undefined) requestBody.user = options.user;
 
-    // Add any additional options (excluding camelCase ones we've already converted)
-    const { maxTokens, topP, stopSequences, ...restOptions } = options || {};
+    // Exclude framework-specific options that shouldn't be sent to the API
+    const {
+      maxTokens,
+      topP,
+      stopSequences,
+      responseLanguage,
+      timeout,
+      frequencyPenalty,
+      presencePenalty,
+      seed,
+      user,
+      ...restOptions
+    } = options || {};
+    
+    // Add any additional provider-specific options
     Object.assign(requestBody, restOptions);
 
     const response = await fetch(`${this.baseURL}/chat/completions`, {

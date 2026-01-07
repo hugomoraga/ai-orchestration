@@ -267,20 +267,58 @@ For local models that expose an OpenAI-compatible API:
 }
 ```
 
-## Health Checks
+## Advanced Configuration
 
-Enable periodic health monitoring:
+### Retry and Timeout Configuration
 
 ```typescript
 const orchestrator = createOrchestrator({
   providers: [...],
   strategy: {...},
-  enableHealthChecks: true,
-  healthCheckInterval: 60000, // every 60 seconds
+  maxRetries: 3, // Maximum retry attempts (default: number of providers)
+  requestTimeout: 30000, // Global timeout in milliseconds (default: 30000)
+  retryDelay: 'exponential', // or number in milliseconds (default: 1000)
 });
 ```
 
-Or manually:
+### Circuit Breaker
+
+Automatically disable providers after consecutive failures:
+
+```typescript
+const orchestrator = createOrchestrator({
+  providers: [...],
+  strategy: {...},
+  circuitBreaker: {
+    enabled: true,
+    failureThreshold: 5, // Open circuit after 5 failures
+    resetTimeout: 60000, // Reset after 60 seconds
+  },
+});
+```
+
+### Health Checks
+
+Enhanced health check configuration:
+
+```typescript
+const orchestrator = createOrchestrator({
+  providers: [...],
+  strategy: {...},
+  healthCheck: {
+    enabled: true,
+    interval: 60000, // Check every 60 seconds
+    timeout: 5000, // Health check timeout (default: 5000ms)
+    maxConsecutiveFailures: 3, // Mark unhealthy after 3 failures (default: 3)
+    latencyThreshold: 10000, // Max latency in ms (default: 10000ms)
+  },
+  // Legacy format still supported:
+  // enableHealthChecks: true,
+  // healthCheckInterval: 60000,
+});
+```
+
+Or manually check health:
 
 ```typescript
 const health = await provider.checkHealth();
@@ -296,8 +334,94 @@ const response = await orchestrator.chat(messages, {
   topP: 0.9,
   topK: 40,
   stopSequences: ['\n\n'],
+  responseLanguage: 'es', // Force response in Spanish
+  frequencyPenalty: 0.5, // Reduce repetition
+  presencePenalty: 0.3, // Encourage new topics
+  seed: 42, // For reproducible outputs
+  timeout: 30000, // Request timeout in milliseconds
+  user: 'user-123', // User identifier for tracking
 });
 ```
+
+### Available Chat Options
+
+- **`temperature`**: Controls randomness (0.0 to 2.0)
+- **`maxTokens`**: Maximum tokens in response
+- **`topP`**: Nucleus sampling threshold
+- **`topK`**: Top-K sampling
+- **`stopSequences`**: Stop generation on these sequences
+- **`responseLanguage`**: Force response language (see below)
+- **`frequencyPenalty`**: Penalize frequent tokens (-2.0 to 2.0)
+- **`presencePenalty`**: Penalize existing tokens (-2.0 to 2.0)
+- **`seed`**: Seed for reproducible outputs
+- **`timeout`**: Request timeout in milliseconds (overrides global timeout)
+- **`user`**: User identifier for tracking/rate limiting
+
+### Forcing Response Language
+
+You can force the AI to respond in a specific language using the `responseLanguage` option:
+
+```typescript
+// Using ISO 639-1 language codes
+const response = await orchestrator.chat(messages, {
+  responseLanguage: 'es', // Spanish
+  // or 'en', 'fr', 'de', 'it', 'pt', 'ja', 'zh', 'ru', etc.
+});
+
+// Using full language names
+const response2 = await orchestrator.chat(messages, {
+  responseLanguage: 'spanish', // Also works
+  // or 'english', 'french', 'german', 'italian', etc.
+});
+```
+
+**How it works**: When `responseLanguage` is specified, the framework automatically prepends a system message instructing the model to respond in the specified language. If you already have a system message, the language instruction will be prepended to it.
+
+**Supported languages**: Spanish, English, French, German, Italian, Portuguese, Japanese, Chinese, Russian, Korean, Arabic, Hindi, Dutch, Polish, Swedish, Turkish (and more via ISO 639-1 codes).
+
+## Metrics and Analytics
+
+Track provider usage, costs, and strategy effectiveness:
+
+```typescript
+const orchestrator = createOrchestrator({
+  providers: [...],
+  strategy: {...},
+  enableMetrics: true, // Enabled by default
+  onMetricsEvent: (event) => {
+    // Optional: Real-time event tracking
+    console.log('Event:', event.type, event.providerId);
+  },
+});
+
+// Make some requests...
+
+// Get overall metrics
+const metrics = orchestrator.getMetrics().getOrchestratorMetrics();
+console.log('Total Requests:', metrics.totalRequests);
+console.log('Total Cost:', metrics.totalCost);
+console.log('Error Rate:', metrics.errorRate);
+
+// Get provider-specific metrics
+const providerMetrics = orchestrator.getMetrics().getProviderMetrics('groq-1');
+console.log('Provider Requests:', providerMetrics?.totalRequests);
+console.log('Provider Cost:', providerMetrics?.totalCost);
+console.log('Success Rate:', providerMetrics?.successfulRequests / providerMetrics?.totalRequests);
+
+// Get strategy metrics
+const strategyMetrics = orchestrator.getMetrics().getStrategyMetrics();
+console.log('Selections by Provider:', strategyMetrics.selectionsByProvider);
+console.log('Average Selection Time:', strategyMetrics.averageSelectionTime);
+```
+
+### Available Metrics
+
+- **Provider Metrics**: Requests, success/failure rates, latency, token usage, costs
+- **Strategy Metrics**: Selection counts, distribution, selection time
+- **Overall Metrics**: Total requests, costs, error rates, requests per minute
+- **Request History**: Detailed history with filtering options
+
+See `examples/metrics.ts` for a complete example.
 
 ## Extensibility
 

@@ -20,6 +20,45 @@ export interface ChatOptions {
   topK?: number;
   stream?: boolean;
   stopSequences?: string[];
+  /**
+   * Force the response language. When set, automatically prepends a system message
+   * instructing the model to respond in the specified language.
+   * 
+   * Supported values: ISO 639-1 language codes (e.g., 'es', 'en', 'fr', 'de', 'it', 'pt', 'ja', 'zh', 'ru')
+   * or full language names (e.g., 'spanish', 'english', 'french').
+   * 
+   * @example
+   * ```typescript
+   * await orchestrator.chat(messages, { responseLanguage: 'es' });
+   * await orchestrator.chat(messages, { responseLanguage: 'spanish' });
+   * ```
+   */
+  responseLanguage?: string;
+  /**
+   * Number between -2.0 and 2.0. Positive values penalize new tokens based on their
+   * existing frequency in the text so far, decreasing the model's likelihood to
+   * repeat the same line verbatim.
+   */
+  frequencyPenalty?: number;
+  /**
+   * Number between -2.0 and 2.0. Positive values penalize new tokens based on whether
+   * they appear in the text so far, increasing the model's likelihood to talk about
+   * new topics.
+   */
+  presencePenalty?: number;
+  /**
+   * If specified, the system will make a best effort to sample deterministically,
+   * such that repeated requests with the same seed and parameters should return the same result.
+   */
+  seed?: number | null;
+  /**
+   * Request timeout in milliseconds. If not specified, uses the orchestrator's default timeout.
+   */
+  timeout?: number;
+  /**
+   * A unique identifier representing your end-user, which can help to monitor and detect abuse.
+   */
+  user?: string;
   [key: string]: unknown; // Allow provider-specific options
 }
 

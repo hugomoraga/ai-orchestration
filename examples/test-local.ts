@@ -36,12 +36,12 @@ async function main() {
   const providers: any[] = [];
 
   if (hasGroq) {
-    providers.push({
-      id: 'groq-1',
-      type: 'groq',
-      apiKey: process.env.GROQ_API_KEY,
-      model: 'llama-3.1-70b-versatile',
-    });
+    providers.push(      {
+        id: 'groq-1',
+        type: 'groq',
+        apiKey: process.env.GROQ_API_KEY,
+        model: 'llama-3.3-70b-versatile',
+      });
   }
 
   if (hasOpenRouter) {

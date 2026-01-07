@@ -35,6 +35,26 @@ interface AppConfig {
   chatOptions?: {
     temperature?: number;
     maxTokens?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+    responseLanguage?: string;
+  };
+  orchestratorConfig?: {
+    maxRetries?: number;
+    requestTimeout?: number;
+    retryDelay?: number | 'exponential';
+    circuitBreaker?: {
+      enabled?: boolean;
+      failureThreshold?: number;
+      resetTimeout?: number;
+    };
+    healthCheck?: {
+      enabled?: boolean;
+      interval?: number;
+      timeout?: number;
+      maxConsecutiveFailures?: number;
+      latencyThreshold?: number;
+    };
   };
 }
 
@@ -102,6 +122,25 @@ async function initOrchestrator() {
           order: providers.map((p) => p.id),
         }),
       },
+      // Advanced configuration from config.json
+      ...(appConfig.orchestratorConfig || {
+        maxRetries: 3,
+        requestTimeout: 30000,
+        retryDelay: 'exponential',
+        circuitBreaker: {
+          enabled: true,
+          failureThreshold: 5,
+          resetTimeout: 60000,
+        },
+        healthCheck: {
+          enabled: true,
+          interval: 60000,
+          timeout: 5000,
+          maxConsecutiveFailures: 3,
+          latencyThreshold: 10000,
+        },
+      }),
+      defaultOptions: defaultChatOptions,
     });
     
     const totalProviders = orchestrator.getAllProviders();
@@ -228,8 +267,8 @@ async function sendMessage(message: string) {
     
     const startTime = Date.now();
     const response = await orchestrator.chat(messages, {
-      temperature: 0.7,
-      maxTokens: 1000,
+      ...defaultChatOptions,
+      // You can override per-request options here
     });
     const duration = Date.now() - startTime;
 

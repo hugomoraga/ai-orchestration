@@ -105,8 +105,10 @@ export function createHealthAwareOrchestrator() {
       preferLowLatency: true,
       minHealthScore: 0.5,
     },
-    enableHealthChecks: true,
-    healthCheckInterval: 30000, // 30 seconds
+    healthCheck: {
+      enabled: true,
+      interval: 30000, // 30 seconds
+    },
   });
 }
 

@@ -9,3 +9,9 @@ dist/
 package/
 *.tgz
 
+# Ignore compiled JS files in src/ (should only be in dist/)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+

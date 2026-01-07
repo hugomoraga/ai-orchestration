@@ -5,6 +5,7 @@
 
 // Core exports
 export { Orchestrator } from './core/orchestrator.js';
+export { MetricsCollector } from './core/metrics.js';
 export type {
   AIService,
   SelectionStrategy,
@@ -18,7 +19,16 @@ export type {
   ProviderConfig,
   StrategyConfig,
   OrchestratorConfig,
+  CircuitBreakerConfig,
+  HealthCheckConfig,
 } from './core/interfaces.js';
+export type {
+  ProviderMetrics,
+  StrategyMetrics,
+  OrchestratorMetrics,
+  MetricsEvent,
+  MetricsCallback,
+} from './core/metrics.js';
 // Also export from types for direct access
 export type {
   ChatMessage as ChatMessageType,

@@ -195,8 +195,34 @@ export function createOrchestrator(config: OrchestratorConfig): Orchestrator {
   // Create strategy
   const strategy = createStrategy(config.strategy);
 
-  // Create orchestrator
-  const orchestrator = new Orchestrator(strategy);
+  // Merge health check config (support deprecated fields for backward compatibility)
+  const healthCheckConfig: typeof config.healthCheck = config.healthCheck
+    ? {
+        ...config.healthCheck,
+        enabled:
+          config.healthCheck.enabled ??
+          config.enableHealthChecks ??
+          false,
+        interval:
+          config.healthCheck.interval ?? config.healthCheckInterval,
+      }
+    : config.enableHealthChecks || config.healthCheckInterval
+      ? {
+          enabled: config.enableHealthChecks ?? true,
+          interval: config.healthCheckInterval,
+        }
+      : undefined;
+
+  // Create orchestrator with new configuration options
+  const orchestrator = new Orchestrator(strategy, {
+    maxRetries: config.maxRetries,
+    requestTimeout: config.requestTimeout,
+    retryDelay: config.retryDelay,
+    circuitBreaker: config.circuitBreaker,
+    healthCheck: healthCheckConfig,
+    enableMetrics: config.enableMetrics,
+    onMetricsEvent: config.onMetricsEvent,
+  });
 
   // Register providers
   const registeredProviders: string[] = [];
@@ -222,13 +248,8 @@ export function createOrchestrator(config: OrchestratorConfig): Orchestrator {
   }
 
   // Start health checks if enabled
-  if (config.enableHealthChecks && config.healthCheckInterval) {
-    if (config.healthCheckInterval < 1000) {
-      console.warn(
-        'Health check interval is very low (< 1000ms). Consider using at least 1000ms.'
-      );
-    }
-    orchestrator.startHealthChecks(config.healthCheckInterval);
+  if (healthCheckConfig?.enabled) {
+    orchestrator.startHealthChecks(healthCheckConfig.interval);
   }
 
   return orchestrator;

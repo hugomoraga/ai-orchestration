@@ -109,13 +109,94 @@ export interface StrategyConfig {
 }
 
 /**
+ * Circuit breaker configuration
+ */
+export interface CircuitBreakerConfig {
+  /**
+   * Enable circuit breaker functionality
+   */
+  enabled?: boolean;
+  /**
+   * Number of consecutive failures before opening the circuit
+   */
+  failureThreshold?: number;
+  /**
+   * Time in milliseconds before attempting to reset the circuit
+   */
+  resetTimeout?: number;
+}
+
+/**
+ * Health check configuration
+ */
+export interface HealthCheckConfig {
+  /**
+   * Interval between health checks in milliseconds
+   */
+  interval?: number;
+  /**
+   * Timeout for individual health checks in milliseconds
+   */
+  timeout?: number;
+  /**
+   * Maximum consecutive failures before marking provider as unhealthy
+   */
+  maxConsecutiveFailures?: number;
+  /**
+   * Maximum latency threshold in milliseconds. Providers exceeding this will be marked unhealthy.
+   */
+  latencyThreshold?: number;
+  /**
+   * Enable periodic health checks
+   */
+  enabled?: boolean;
+}
+
+/**
  * Main orchestrator configuration
  */
 export interface OrchestratorConfig {
   providers: ProviderConfig[];
   strategy: StrategyConfig;
   defaultOptions?: ChatOptions;
-  healthCheckInterval?: number; // milliseconds
+  /**
+   * Maximum number of retry attempts before giving up.
+   * Defaults to the number of providers if not specified.
+   */
+  maxRetries?: number;
+  /**
+   * Global timeout for all requests in milliseconds.
+   * Defaults to 30000 (30 seconds) if not specified.
+   */
+  requestTimeout?: number;
+  /**
+   * Delay between retries in milliseconds, or 'exponential' for exponential backoff.
+   * Defaults to 1000 (1 second) if not specified.
+   */
+  retryDelay?: number | 'exponential';
+  /**
+   * Circuit breaker configuration
+   */
+  circuitBreaker?: CircuitBreakerConfig;
+  /**
+   * Health check configuration
+   */
+  healthCheck?: HealthCheckConfig;
+  /**
+   * Enable metrics collection (default: true)
+   */
+  enableMetrics?: boolean;
+  /**
+   * Callback for metrics events
+   */
+  onMetricsEvent?: import('./metrics.js').MetricsCallback;
+  /**
+   * @deprecated Use healthCheck.enabled instead
+   */
   enableHealthChecks?: boolean;
+  /**
+   * @deprecated Use healthCheck.interval instead
+   */
+  healthCheckInterval?: number;
 }
 

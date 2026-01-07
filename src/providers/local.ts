@@ -86,7 +86,15 @@ export class LocalProvider extends BaseProvider {
         max_tokens: options?.maxTokens,
         top_p: options?.topP,
         stop: options?.stopSequences,
-        ...options,
+        frequency_penalty: options?.frequencyPenalty,
+        presence_penalty: options?.presencePenalty,
+        seed: options?.seed !== undefined && options.seed !== null ? options.seed : undefined,
+        user: options?.user,
+        // Exclude framework-specific options
+        ...(() => {
+          const { responseLanguage, timeout, ...rest } = options || {};
+          return rest;
+        })(),
       }),
     });
 
