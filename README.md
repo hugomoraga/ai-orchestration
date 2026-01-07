@@ -21,6 +21,22 @@ A modular and extensible framework for orchestrating multiple AI/LLM providers c
 npm install @ai-orchestration/core
 ```
 
+### Module System Compatibility
+
+This package supports both **ESM** (ECMAScript Modules) and **CommonJS**, so you can use it in any Node.js project:
+
+**ESM Projects** (recommended):
+```typescript
+import { createOrchestrator } from '@ai-orchestration/core';
+```
+
+**CommonJS Projects**:
+```javascript
+const { createOrchestrator } = require('@ai-orchestration/core');
+```
+
+The package automatically exports the correct format based on your project's module system.
+
 ## Quick Start
 
 ### Basic Usage
