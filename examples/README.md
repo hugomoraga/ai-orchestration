@@ -58,6 +58,82 @@ npx tsx examples/language.ts
 **Required environment variables:**
 - `GROQ_API_KEY` (at least one provider required)
 
+### Images (`images.ts`)
+
+Demonstrates how to send images along with text messages to AI providers that support multimodal input.
+
+**Using npm script:**
+```bash
+npm run example:images
+```
+
+**Or directly with tsx:**
+```bash
+npx tsx examples/images.ts
+```
+
+**Required environment variables:**
+- `GROQ_API_KEY` (requires Llama 3.2 Vision models: `llama-3.2-11b-vision-preview`)
+- `OPENROUTER_API_KEY` (use vision-capable models like `openai/gpt-4o`)
+- `GEMINI_API_KEY` (use `gemini-pro-vision`, `gemini-1.5-pro`, or `gemini-2.0-flash`)
+
+**Setup:**
+```bash
+# Export environment variables
+export GROQ_API_KEY="your-key"
+export OPENROUTER_API_KEY="your-key"
+export GEMINI_API_KEY="your-key"
+
+# Or create .env file
+echo "GROQ_API_KEY=your-key" > .env
+echo "OPENROUTER_API_KEY=your-key" >> .env
+echo "GEMINI_API_KEY=your-key" >> .env
+```
+
+**Note:** At least one provider with vision support is required. See `IMAGES_SETUP.md` for detailed setup instructions.
+
+**⚠️ Important:** 
+- Cerebras does NOT support images (text-only models)
+- Make sure to use vision-capable models (see examples above)
+
+### Image Generation (`image-generation.ts`)
+
+Demonstrates how to generate images from text prompts using AI providers that support image generation.
+
+**Using npm script:**
+```bash
+npm run example:image-generation
+```
+
+**Or directly with tsx:**
+```bash
+npx tsx examples/image-generation.ts
+```
+
+**Required environment variables:**
+- `OPENROUTER_API_KEY` (required for image generation)
+
+**Setup:**
+```bash
+# Export environment variable
+export OPENROUTER_API_KEY="your-key"
+
+# Or create .env file
+echo "OPENROUTER_API_KEY=your-key" > .env
+```
+
+**Supported Models:**
+- `openai/dall-e-3` (recommended)
+- `stability-ai/stable-diffusion-xl`
+- `black-forest-labs/flux-pro`
+
+**Features demonstrated:**
+- Basic image generation
+- High quality images
+- Multiple image generation
+- Base64 response format
+- Different aspect ratios
+
 ### Metrics and Analytics (`metrics.ts`)
 
 Shows how to track provider usage, costs, and strategy effectiveness.

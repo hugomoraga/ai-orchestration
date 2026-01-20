@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-01-XX
+
+### Added
+- **Image Generation Support**: Generate images from text prompts using DALL-E models
+  - New `OpenAIProvider` for OpenAI API integration (chat and image generation)
+  - `generateImage()` method in orchestrator and providers
+  - `ImageGenerationOptions` interface with support for quality, style, size, and response format
+  - `ImageGenerationResponse` interface with generated images metadata
+  - Example: `examples/image-generation.ts` demonstrating image generation usage
+- **Multimodal Content Support**: Enhanced message handling for text and images
+  - `ContentPart` union type for multimodal messages (`TextContent` and `ImageContent`)
+  - `ChatMessage.content` now supports both string and `ContentPart[]`
+  - All providers updated to handle multimodal input (vision models)
+  - Example: `examples/images.ts` demonstrating image analysis
+- **Comprehensive Test Suite**:
+  - `tests/image-generation.test.ts`: 10 tests for image generation functionality
+  - `tests/multimodal.test.ts`: 9 tests for multimodal content handling
+  - All 28 tests passing
+- **Improved Documentation**:
+  - JSDoc comments for all public methods
+  - Enhanced type definitions with union types for better type safety
+  - Clear separation between vision (analyzing images) and image generation capabilities
+
+### Changed
+- `ImageGenerationOptions.quality` and `style` now use union types instead of generic strings
+- Provider metadata now includes `supportsImageGeneration` flag
+- Error messages updated to guide users to correct providers for image generation
+
+### Fixed
+- Removed non-functional image generation code from `OpenRouterProvider`
+- Fixed test script to use `--import` instead of deprecated `--loader` flag
+- Improved code organization and clean architecture principles
+
 ## [0.2.0] - 2025-12-05
 
 ### Added

@@ -9,6 +9,9 @@ import type {
   ChatChunk,
   ProviderHealth,
   ProviderMetadata,
+  ImageGenerationOptions,
+  ImageGenerationResponse,
+  GeneratedImage,
 } from './types.js';
 
 // Re-export types for convenience
@@ -19,6 +22,9 @@ export type {
   ChatChunk,
   ProviderHealth,
   ProviderMetadata,
+  ImageGenerationOptions,
+  ImageGenerationResponse,
+  GeneratedImage,
 };
 
 /**
@@ -52,6 +58,14 @@ export interface AIService {
     messages: ChatMessage[],
     options?: ChatOptions
   ): Promise<ReadableStream<ChatChunk>>;
+
+  /**
+   * Generate images from a text prompt (optional - only if provider supports it)
+   */
+  generateImage?(
+    prompt: string,
+    options?: ImageGenerationOptions
+  ): Promise<ImageGenerationResponse>;
 }
 
 /**

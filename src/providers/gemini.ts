@@ -118,6 +118,55 @@ export class GeminiProvider extends BaseProvider {
     // Gemini uses a different format
     return messages.map((msg) => {
       const role = msg.role === 'assistant' ? 'model' : 'user';
+      
+      // Handle multimodal content (array of ContentPart)
+      if (Array.isArray(msg.content)) {
+        const parts = msg.content.map((part) => {
+          if (part.type === 'text') {
+            return { text: part.text };
+          } else if (part.type === 'image') {
+            // Extract base64 data and mime type
+            let imageData = part.image;
+            let mimeType = part.mimeType || 'image/jpeg';
+            
+            // Handle data URI format (data:image/jpeg;base64,...)
+            if (imageData.startsWith('data:')) {
+              const match = imageData.match(/^data:([^;]+);base64,(.+)$/);
+              if (match) {
+                mimeType = match[1];
+                imageData = match[2];
+              } else {
+                // Fallback: try to extract base64 part
+                const base64Index = imageData.indexOf('base64,');
+                if (base64Index !== -1) {
+                  imageData = imageData.slice(base64Index + 7);
+                }
+              }
+            } else if (imageData.startsWith('http')) {
+              // For URLs, Gemini requires fetching the image
+              // For now, we'll throw an error suggesting to use base64
+              throw new Error(
+                'Gemini provider requires base64-encoded images. Please convert the image URL to base64 format.'
+              );
+            }
+            
+            return {
+              inline_data: {
+                mime_type: mimeType,
+                data: imageData,
+              },
+            };
+          }
+          return null;
+        }).filter(Boolean);
+        
+        return {
+          role,
+          parts,
+        };
+      }
+      
+      // Handle simple string content (backward compatibility)
       return {
         role,
         parts: [{ text: msg.content }],

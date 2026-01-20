@@ -7,6 +7,8 @@ export { GroqProvider } from './groq.js';
 export type { GroqProviderConfig } from './groq.js';
 export { OpenRouterProvider } from './openrouter.js';
 export type { OpenRouterProviderConfig } from './openrouter.js';
+export { OpenAIProvider } from './openai.js';
+export type { OpenAIProviderConfig } from './openai.js';
 export { GeminiProvider } from './gemini.js';
 export type { GeminiProviderConfig } from './gemini.js';
 export { CerebrasProvider } from './cerebras.js';

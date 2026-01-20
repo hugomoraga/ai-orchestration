@@ -13,9 +13,13 @@ import type {
 } from '../core/types.js';
 
 export interface OpenRouterProviderConfig {
+  /** Unique identifier for this provider instance */
   id: string;
+  /** OpenRouter API key */
   apiKey: string;
+  /** Model to use (default: 'openai/gpt-3.5-turbo') */
   model?: string;
+  /** Custom base URL (default: 'https://openrouter.ai/api/v1') */
   baseURL?: string;
 }
 
@@ -37,13 +41,21 @@ export class OpenRouterProvider extends BaseProvider {
       id: this.id,
       name: 'OpenRouter',
       model: this.model,
+      supportsImageGeneration: false,
+      capabilities: ['chat', 'vision'], // Chat and vision (analyzing images), but not image generation
     };
   }
 
+  /**
+   * Check the health status of the OpenRouter provider
+   */
   async checkHealth(): Promise<ProviderHealth> {
     return this.defaultHealthCheck();
   }
 
+  /**
+   * Perform a chat completion using OpenRouter's API
+   */
   async chat(
     messages: ChatMessage[],
     options?: ChatOptions
@@ -84,6 +96,9 @@ export class OpenRouterProvider extends BaseProvider {
     return this.parseResponse(data);
   }
 
+  /**
+   * Perform a streaming chat completion using OpenRouter's API
+   */
   async chatStream(
     messages: ChatMessage[],
     options?: ChatOptions
@@ -128,13 +143,65 @@ export class OpenRouterProvider extends BaseProvider {
     return this.parseStream(response.body);
   }
 
+  /**
+   * Format messages for OpenRouter API (supports multimodal content)
+   */
   protected formatMessages(messages: ChatMessage[]): unknown {
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    return messages.map((msg) => {
+      // Handle multimodal content (array of ContentPart)
+      if (Array.isArray(msg.content)) {
+        const content = msg.content.map((part) => {
+          if (part.type === 'text') {
+            return { type: 'text', text: part.text };
+          } else if (part.type === 'image') {
+            // Extract base64 data and mime type
+            let imageData = part.image;
+            let mimeType = part.mimeType || 'image/jpeg';
+            
+            // Handle data URI format (data:image/jpeg;base64,...)
+            if (imageData.startsWith('data:')) {
+              const match = imageData.match(/^data:([^;]+);base64,(.+)$/);
+              if (match) {
+                mimeType = match[1];
+                imageData = match[2];
+              } else {
+                // Fallback: try to extract base64 part
+                const base64Index = imageData.indexOf('base64,');
+                if (base64Index !== -1) {
+                  imageData = imageData.slice(base64Index + 7);
+                }
+              }
+            }
+            
+            return {
+              type: 'image_url',
+              image_url: {
+                url: imageData.startsWith('http') 
+                  ? imageData 
+                  : `data:${mimeType};base64,${imageData}`,
+              },
+            };
+          }
+          return null;
+        }).filter(Boolean);
+        
+        return {
+          role: msg.role,
+          content,
+        };
+      }
+      
+      // Handle simple string content (backward compatibility)
+      return {
+        role: msg.role,
+        content: msg.content,
+      };
+    });
   }
 
+  /**
+   * Parse OpenRouter API response into ChatResponse format
+   */
   protected parseResponse(response: unknown): ChatResponse {
     const data = response as {
       choices?: Array<{
@@ -168,6 +235,9 @@ export class OpenRouterProvider extends BaseProvider {
     };
   }
 
+  /**
+   * Parse OpenRouter streaming response into ChatChunk stream
+   */
   protected parseStream(
     stream: ReadableStream<unknown>
   ): ReadableStream<ChatChunk> {

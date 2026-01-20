@@ -12,6 +12,8 @@ import type {
   ChatChunk,
   CircuitBreakerConfig,
   HealthCheckConfig,
+  ImageGenerationOptions,
+  ImageGenerationResponse,
 } from './interfaces.js';
 import { MetricsCollector, type MetricsCallback } from './metrics.js';
 
@@ -82,6 +84,17 @@ function processMessagesWithLanguage(
     const languageInstruction = getLanguageInstruction(options.responseLanguage);
     return messages.map((msg) => {
       if (msg.role === 'system') {
+        // Handle multimodal content
+        if (Array.isArray(msg.content)) {
+          return {
+            ...msg,
+            content: [
+              { type: 'text', text: `${languageInstruction}\n\n` },
+              ...msg.content,
+            ],
+          };
+        }
+        // Handle string content (backward compatibility)
         return {
           ...msg,
           content: `${languageInstruction}\n\n${msg.content}`,
@@ -460,6 +473,114 @@ export class Orchestrator {
       this.metrics.recordFailure(provider, err);
       throw error;
     }
+  }
+
+  /**
+   * Generate images from a text prompt
+   * Automatically selects a provider that supports image generation
+   */
+  async generateImage(
+    prompt: string,
+    options?: ImageGenerationOptions
+  ): Promise<ImageGenerationResponse> {
+    // Get providers that support image generation
+    const availableProviders = this.getAllProviders().filter(
+      (p) => p.metadata.supportsImageGeneration && p.generateImage
+    );
+
+    if (availableProviders.length === 0) {
+      throw new Error(
+        'No providers with image generation support available. ' +
+        'Make sure at least one provider supports image generation (e.g., OpenAI provider with DALL-E models).'
+      );
+    }
+
+    // Create context for provider selection
+    const context: SelectionContext = {
+      prompt,
+      options,
+      previousAttempts: [],
+      taskType: 'image-generation',
+    };
+
+    // Determine max attempts
+    const maxAttempts =
+      this.maxRetries === -1 ? availableProviders.length : this.maxRetries;
+    let lastError: Error | null = null;
+
+    // Get timeout (request-level or global)
+    const timeout = options?.timeout ?? this.requestTimeout;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Add delay between retries (except first attempt)
+      if (attempt > 0) {
+        const delay = this.getRetryDelay(attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
+      // Filter out providers already tried
+      const remainingProviders = availableProviders.filter(
+        (p) => !context.previousAttempts?.includes(p.id)
+      );
+
+      if (remainingProviders.length === 0) {
+        break;
+      }
+
+      // Select provider using strategy
+      const provider = await this.strategy.select(remainingProviders, context);
+
+      if (!provider || !provider.generateImage) {
+        continue;
+      }
+
+      try {
+        this.metrics.recordRequestStart(provider);
+        const startTime = Date.now();
+
+        // Wrap provider call with timeout
+        const imagePromise = provider.generateImage(prompt, options);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout')), timeout)
+        );
+
+        const result = await Promise.race([imagePromise, timeoutPromise]);
+        const latency = Date.now() - startTime;
+
+        this.strategy.update?.(provider, true);
+        this.recordSuccess(provider.id);
+        
+        // Track success metrics for image generation
+        const metrics = this.metrics['getOrCreateProviderMetrics'](provider);
+        if (metrics) {
+          metrics.totalRequests++;
+          metrics.successfulRequests++;
+          if (metrics.averageLatency === 0) {
+            metrics.averageLatency = latency;
+          } else {
+            metrics.averageLatency = metrics.averageLatency * 0.9 + latency * 0.1;
+          }
+          metrics.lastUsed = new Date();
+          metrics.lastSuccess = new Date();
+        }
+
+        return result;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        lastError = err;
+        this.strategy.update?.(provider, false, { error });
+        this.recordFailure(provider.id);
+        this.metrics.recordFailure(provider, err);
+
+        // Add to previous attempts
+        if (!context.previousAttempts) {
+          context.previousAttempts = [];
+        }
+        context.previousAttempts.push(provider.id);
+      }
+    }
+
+    throw lastError || new Error('Failed to generate image from any provider');
   }
 
   /**

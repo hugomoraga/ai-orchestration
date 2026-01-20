@@ -1,5 +1,6 @@
 /**
- * Local provider implementation (for local models via HTTP API)
+ * OpenAI provider implementation
+ * Supports both chat completions and image generation (DALL-E)
  */
 
 import { BaseProvider } from './base.js';
@@ -10,75 +11,65 @@ import type {
   ChatChunk,
   ProviderHealth,
   ProviderMetadata,
+  ImageGenerationOptions,
+  ImageGenerationResponse,
+  GeneratedImage,
 } from '../core/types.js';
 
-export interface LocalProviderConfig {
+export interface OpenAIProviderConfig {
+  /** Unique identifier for this provider instance */
   id: string;
-  baseURL: string;
+  /** OpenAI API key */
+  apiKey: string;
+  /**
+   * Model to use for chat completions (default: 'gpt-3.5-turbo')
+   * For image generation, DALL-E 3 is used by default regardless of this setting
+   */
   model?: string;
-  apiKey?: string;
+  /** Custom base URL (default: 'https://api.openai.com/v1') */
+  baseURL?: string;
 }
 
-export class LocalProvider extends BaseProvider {
+export class OpenAIProvider extends BaseProvider {
   readonly id: string;
   readonly metadata: ProviderMetadata;
+  private apiKey: string;
+  private model: string;
   private baseURL: string;
-  private model?: string;
-  private apiKey?: string;
 
-  constructor(config: LocalProviderConfig) {
+  constructor(config: OpenAIProviderConfig) {
     super();
     this.id = config.id;
-    this.baseURL = config.baseURL;
-    this.model = config.model;
     this.apiKey = config.apiKey;
+    this.model = config.model || 'gpt-3.5-turbo';
+    this.baseURL = config.baseURL || 'https://api.openai.com/v1';
 
     this.metadata = {
       id: this.id,
-      name: 'Local Model',
+      name: 'OpenAI',
       model: this.model,
+      supportsImageGeneration: true,
+      capabilities: ['chat', 'image-generation'],
     };
   }
 
   async checkHealth(): Promise<ProviderHealth> {
-    try {
-      const start = Date.now();
-      const response = await fetch(`${this.baseURL}/health`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
-      const latency = Date.now() - start;
-
-      if (response.ok) {
-        return {
-          healthy: true,
-          latency,
-          lastChecked: new Date(),
-        };
-      }
-
-      return {
-        healthy: false,
-        latency,
-        lastChecked: new Date(),
-        error: `Health check returned ${response.status}`,
-      };
-    } catch (error) {
-      return {
-        healthy: false,
-        lastChecked: new Date(),
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+    return this.defaultHealthCheck();
   }
 
+  /**
+   * Perform a chat completion using OpenAI's API
+   */
   async chat(
     messages: ChatMessage[],
     options?: ChatOptions
   ): Promise<ChatResponse> {
     const response = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: this.getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
       body: JSON.stringify({
         model: this.model,
         messages: this.formatMessages(messages),
@@ -90,30 +81,31 @@ export class LocalProvider extends BaseProvider {
         presence_penalty: options?.presencePenalty,
         seed: options?.seed !== undefined && options.seed !== null ? options.seed : undefined,
         user: options?.user,
-        // Exclude framework-specific options
-        ...(() => {
-          const { responseLanguage, timeout, ...rest } = options || {};
-          return rest;
-        })(),
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Local API error: ${response.status} ${error}`);
+      throw new Error(`OpenAI API error: ${response.status} ${error}`);
     }
 
     const data = await response.json();
     return this.parseResponse(data);
   }
 
+  /**
+   * Perform a streaming chat completion using OpenAI's API
+   */
   async chatStream(
     messages: ChatMessage[],
     options?: ChatOptions
   ): Promise<ReadableStream<ChatChunk>> {
     const response = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
-      headers: this.getHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
       body: JSON.stringify({
         model: this.model,
         messages: this.formatMessages(messages),
@@ -122,13 +114,16 @@ export class LocalProvider extends BaseProvider {
         max_tokens: options?.maxTokens,
         top_p: options?.topP,
         stop: options?.stopSequences,
-        ...options,
+        frequency_penalty: options?.frequencyPenalty,
+        presence_penalty: options?.presencePenalty,
+        seed: options?.seed !== undefined && options.seed !== null ? options.seed : undefined,
+        user: options?.user,
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Local API error: ${response.status} ${error}`);
+      throw new Error(`OpenAI API error: ${response.status} ${error}`);
     }
 
     if (!response.body) {
@@ -136,6 +131,106 @@ export class LocalProvider extends BaseProvider {
     }
 
     return this.parseStream(response.body);
+  }
+
+  /**
+   * Generate images from a text prompt using DALL-E models
+   */
+  async generateImage(
+    prompt: string,
+    options?: ImageGenerationOptions
+  ): Promise<ImageGenerationResponse> {
+    // Determine the image generation model to use
+    // Default to DALL-E 3, or use configured model if it's a DALL-E model
+    let imageModel = 'dall-e-3';
+    
+    if (this.model.includes('dall-e-2')) {
+      imageModel = 'dall-e-2';
+    } else if (this.model.includes('dall-e-3')) {
+      imageModel = 'dall-e-3';
+    }
+
+    // Build request body
+    const requestBody: Record<string, unknown> = {
+      model: imageModel,
+      prompt,
+      n: options?.n ?? 1,
+      size: options?.size || '1024x1024',
+      quality: options?.quality || 'standard',
+      response_format: options?.responseFormat || 'url',
+    };
+
+    // Add style parameter (only supported by DALL-E 3)
+    if (options?.style && imageModel === 'dall-e-3') {
+      requestBody.style = options.style;
+    }
+
+    const timeoutMs = options?.timeout ?? 60000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(`${this.baseURL}/images/generations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `OpenAI image generation error: ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage += ` - ${errorJson.error?.message || errorText}`;
+        } catch {
+          errorMessage += ` - ${errorText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json() as {
+        data?: Array<{
+          url?: string;
+          b64_json?: string;
+          revised_prompt?: string;
+        }>;
+        created?: number;
+      };
+
+      const images: GeneratedImage[] = [];
+      if (Array.isArray(data.data)) {
+        for (const item of data.data) {
+          images.push({
+            url: item.url,
+            b64Json: item.b64_json,
+            revisedPrompt: item.revised_prompt,
+          });
+        }
+      }
+
+      return {
+        images,
+        model: imageModel,
+        usage: {
+          imagesGenerated: images.length,
+        },
+        metadata: {
+          created: data.created,
+        },
+      };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Image generation timeout');
+      }
+      throw error;
+    }
   }
 
   protected formatMessages(messages: ChatMessage[]): unknown {
@@ -157,7 +252,6 @@ export class LocalProvider extends BaseProvider {
                 mimeType = match[1];
                 imageData = match[2];
               } else {
-                // Fallback: try to extract base64 part
                 const base64Index = imageData.indexOf('base64,');
                 if (base64Index !== -1) {
                   imageData = imageData.slice(base64Index + 7);
@@ -191,6 +285,9 @@ export class LocalProvider extends BaseProvider {
     });
   }
 
+  /**
+   * Parse OpenAI API response into ChatResponse format
+   */
   protected parseResponse(response: unknown): ChatResponse {
     const data = response as {
       choices?: Array<{
@@ -207,7 +304,7 @@ export class LocalProvider extends BaseProvider {
 
     const choice = data.choices?.[0];
     if (!choice?.message?.content) {
-      throw new Error('Invalid response format from local provider');
+      throw new Error('Invalid response format from OpenAI');
     }
 
     return {
@@ -224,6 +321,9 @@ export class LocalProvider extends BaseProvider {
     };
   }
 
+  /**
+   * Parse OpenAI streaming response into ChatChunk stream
+   */
   protected parseStream(
     stream: ReadableStream<unknown>
   ): ReadableStream<ChatChunk> {
@@ -293,18 +393,6 @@ export class LocalProvider extends BaseProvider {
         }
       },
     });
-  }
-
-  private getHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.apiKey) {
-      headers.Authorization = `Bearer ${this.apiKey}`;
-    }
-
-    return headers;
   }
 }
 

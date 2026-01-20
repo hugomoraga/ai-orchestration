@@ -37,6 +37,12 @@ export type {
   ChatChunk as ChatChunkType,
   ProviderHealth as ProviderHealthType,
   ProviderMetadata as ProviderMetadataType,
+  ImageContent,
+  TextContent,
+  ContentPart,
+  ImageGenerationOptions,
+  ImageGenerationResponse,
+  GeneratedImage,
 } from './core/types.js';
 
 // Error exports
@@ -66,6 +72,7 @@ export type {
 export {
   GroqProvider,
   OpenRouterProvider,
+  OpenAIProvider,
   GeminiProvider,
   CerebrasProvider,
   LocalProvider,
@@ -73,6 +80,7 @@ export {
 export type {
   GroqProviderConfig,
   OpenRouterProviderConfig,
+  OpenAIProviderConfig,
   GeminiProviderConfig,
   CerebrasProviderConfig,
   LocalProviderConfig,

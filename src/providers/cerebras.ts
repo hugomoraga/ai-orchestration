@@ -163,10 +163,37 @@ export class CerebrasProvider extends BaseProvider {
   }
 
   protected formatMessages(messages: ChatMessage[]): unknown {
-    return messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    return messages.map((msg) => {
+      // Handle multimodal content (array of ContentPart)
+      if (Array.isArray(msg.content)) {
+        // Check if any part is an image
+        const hasImages = msg.content.some((part) => part.type === 'image');
+        
+        if (hasImages) {
+          throw new Error(
+            'Cerebras provider does not support images. ' +
+            'Cerebras models are text-only (Llama 3.1/3.3). ' +
+            'For image support, use providers like Gemini, OpenRouter (with vision models), or Groq (with Llama 3.2 Vision models).'
+          );
+        }
+        
+        // If no images, extract only text content
+        const textParts = msg.content
+          .filter((part) => part.type === 'text')
+          .map((part) => part.text);
+        
+        return {
+          role: msg.role,
+          content: textParts.join('\n'),
+        };
+      }
+      
+      // Handle simple string content (backward compatibility)
+      return {
+        role: msg.role,
+        content: msg.content,
+      };
+    });
   }
 
   protected parseResponse(response: unknown): ChatResponse {

@@ -27,11 +27,13 @@ import {
 import {
   GroqProvider,
   OpenRouterProvider,
+  OpenAIProvider,
   GeminiProvider,
   CerebrasProvider,
   LocalProvider,
   type GroqProviderConfig,
   type OpenRouterProviderConfig,
+  type OpenAIProviderConfig,
   type GeminiProviderConfig,
   type CerebrasProviderConfig,
   type LocalProviderConfig,
@@ -82,6 +84,20 @@ function createProvider(config: ProviderConfig): AIService {
           baseURL,
           ...rest,
         } as OpenRouterProviderConfig);
+
+      case 'openai':
+        if (!apiKey) {
+          throw new ConfigurationError(
+            `Provider ${id} (openai) requires apiKey`
+          );
+        }
+        return new OpenAIProvider({
+          id,
+          apiKey,
+          model,
+          baseURL,
+          ...rest,
+        } as OpenAIProviderConfig);
 
       case 'gemini':
         if (!apiKey) {
